@@ -32,7 +32,8 @@ enum TokenType {
 pub struct Token {
     token_type: TokenType,
     text: String,
-    position: usize,
+    start: usize,
+    end: usize,
 }
 
 static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
@@ -74,8 +75,8 @@ impl<'a> Lexer<'a> {
     }
 
     fn scan_string_literal(&mut self) -> Result<Token, LexingError> {
-        self.pos += 1;
         let start = self.pos;
+        self.pos += 1;
 
         while let Some(current) = self.get_current_char() {
             self.pos += 1;
@@ -90,26 +91,29 @@ impl<'a> Lexer<'a> {
             Ok(Token {
                 token_type: TokenType::StringLiteral,
                 text: self.input[start..self.pos].to_string(),
-                position: self.pos,
+                start: start,
+                end: self.pos,
             })
         }
     }
 
     fn scan_numeric_literal(&mut self) -> Result<Token, LexingError> {
-        self.pos += 1;
         let start = self.pos;
+        self.pos += 1;
 
         while let Some(current) = self.get_current_char() {
             if !current.is_digit(10) {
                 break;
             }
+
             self.pos += 1;
         }
 
         Ok(Token {
             token_type: TokenType::NumericLiteral,
             text: self.input[start..self.pos].to_string(),
-            position: self.pos,
+            start,
+            end: self.pos,
         })
     }
 
@@ -130,11 +134,13 @@ impl<'a> Lexer<'a> {
         Ok(Token {
             token_type,
             text: text.to_string(),
-            position: self.pos,
+            start,
+            end: self.pos,
         })
     }
 
     fn scan_operator(&mut self) -> Result<Token, LexingError> {
+        let start = self.pos;
         let token = match self.get_current_char() {
             Some('=') => match self.get_next_char() {
                 Some('>') => {
@@ -163,7 +169,8 @@ impl<'a> Lexer<'a> {
             Ok(Token {
                 token_type: token.unwrap(),
                 text: self.input[self.pos - 1..self.pos].to_string(),
-                position: self.pos,
+                start,
+                end: self.pos,
             })
         }
     }
