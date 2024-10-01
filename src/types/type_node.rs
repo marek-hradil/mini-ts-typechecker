@@ -1,10 +1,10 @@
+use super::{
+    parameter::Parameter, property_declaration::PropertyDeclaration, type_parameter::TypeParameter,
+    Location,
+};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_expected, parse_identifier, parse_sequence, try_consume_token};
-use crate::types::parameter::Parameter;
-use crate::types::property_declaration::PropertyDeclaration;
-use crate::types::type_parameter::TypeParameter;
-use crate::types::Location;
 
 #[derive(Debug)]
 pub enum TypeNode {

@@ -1,14 +1,12 @@
+use super::{
+    parameter::Parameter, property_assignment::PropertyAssignment, statement::Statement,
+    type_node::TypeNode, type_parameter::TypeParameter, Location, Node,
+};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{
     parse_expected, parse_identifier, parse_sequence, try_consume_token, try_parse_prefixed,
 };
-use crate::types::parameter::Parameter;
-use crate::types::property_assignment::PropertyAssignment;
-use crate::types::statement::Statement;
-use crate::types::type_node::TypeNode;
-use crate::types::type_parameter::TypeParameter;
-use crate::types::Location;
 
 #[derive(Debug)]
 pub enum Expression {
@@ -45,6 +43,8 @@ pub enum Expression {
         arguments: Vec<Box<Expression>>,
     },
 }
+
+impl Node for Expression {}
 
 impl Expression {
     pub fn parse(lexer: &mut Lexer) -> Result<Expression, ParsingError> {

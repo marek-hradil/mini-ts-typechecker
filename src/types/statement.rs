@@ -1,9 +1,7 @@
+use super::{expression::Expression, type_node::TypeNode, Location};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_expected, parse_identifier, try_consume_token, try_parse_prefixed};
-use crate::types::expression::Expression;
-use crate::types::type_node::TypeNode;
-use crate::types::Location;
 
 #[derive(Debug)]
 pub enum Statement {

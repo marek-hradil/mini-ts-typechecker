@@ -4,3 +4,4 @@
 
 ## Todo:
 - Fix weird handeling of EOF, mainly when calling scan (or next) on the EOF, panic!.
+- Make errors more specific, when parsing

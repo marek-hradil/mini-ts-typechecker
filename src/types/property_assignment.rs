@@ -1,8 +1,7 @@
+use super::{expression::Expression, Location};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_expected, parse_identifier};
-use crate::types::expression::Expression;
-use crate::types::Location;
 
 #[derive(Debug)]
 pub struct PropertyAssignment {

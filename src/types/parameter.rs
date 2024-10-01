@@ -1,8 +1,7 @@
+use super::{type_node::TypeNode, Location};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_identifier, try_parse_prefixed};
-use crate::types::type_node::TypeNode;
-use crate::types::Location;
 
 #[derive(Debug)]
 pub struct Parameter {

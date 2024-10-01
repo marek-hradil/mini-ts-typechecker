@@ -1,7 +1,7 @@
+use super::Location;
 use crate::errors::ParsingError;
 use crate::lexer::Lexer;
 use crate::parser::parse_identifier;
-use crate::types::Location;
 
 #[derive(Debug)]
 pub struct TypeParameter {
