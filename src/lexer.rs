@@ -1,8 +1,8 @@
 use crate::errors::LexingError;
 use phf::phf_map;
 
-#[derive(Clone, Debug)]
-enum TokenType {
+#[derive(Clone, Debug, PartialEq)]
+pub enum TokenType {
     Function,
     Var,
     Type,
@@ -28,12 +28,12 @@ enum TokenType {
     EOF,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
-    token_type: TokenType,
-    text: String,
-    start: usize,
-    end: usize,
+    pub token_type: TokenType,
+    pub text: String,
+    pub start: usize,
+    pub end: usize,
 }
 
 static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
@@ -46,19 +46,45 @@ static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
 pub struct Lexer<'a> {
     input: &'a str,
     pos: usize,
+    current: Option<Result<Token, LexingError>>,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Lexer<'a> {
-        Lexer { input, pos: 0 }
+        Lexer {
+            input,
+            pos: 0,
+            current: None,
+        }
     }
 
     pub fn scan(&mut self) -> Option<Result<Token, LexingError>> {
         self.skip_whitespace();
 
-        match self.get_current_char() {
+        self.current = match self.get_current_char() {
             Some(current) => Some(self.scan_token(current)),
-            None => None,
+            None => Some(Ok(Token {
+                token_type: TokenType::EOF,
+                text: "".to_string(),
+                start: self.pos,
+                end: self.pos,
+            })),
+        };
+
+        self.current.clone()
+    }
+
+    pub fn get(&self) -> Option<Token> {
+        match self.current {
+            Some(Ok(ref token)) => Some(token.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn get_type(&self) -> Option<&TokenType> {
+        match self.current {
+            Some(Ok(ref token)) => Some(&token.token_type),
+            _ => None,
         }
     }
 

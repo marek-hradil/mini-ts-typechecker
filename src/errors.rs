@@ -3,3 +3,8 @@ pub enum LexingError {
     UnterminatedStringLiteralError,
     UnexpectedEndOfFileError,
 }
+
+#[derive(Debug, Clone)]
+pub enum ParsingError {
+    UnexpectedEndOfFileError,
+}

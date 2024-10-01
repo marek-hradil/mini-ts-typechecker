@@ -1,9 +1,11 @@
-use crate::lex::Lexer;
+use crate::lexer::Lexer;
+use crate::parser::parse;
 use std::env;
 use std::fs;
 
 mod errors;
-mod lex;
+mod lexer;
+mod parser;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -13,11 +15,21 @@ fn main() {
 
     match contents {
         Ok(contents) => {
-            let lexer = Lexer::new(&contents);
+            run_checker(contents);
+        }
+        Err(error) => {
+            println!("Error: {:?}", error);
+        }
+    }
+}
 
-            for token in lexer {
-                println!("{:?}", token);
-            }
+pub fn run_checker(contents: String) {
+    let mut lexer = Lexer::new(&contents);
+    let ast = parse(&mut lexer);
+
+    match ast {
+        Ok(ast) => {
+            println!("{:?}", ast);
         }
         Err(error) => {
             println!("Error: {:?}", error);
