@@ -19,9 +19,7 @@ impl Module {
             TokenType::EOF,
         )?;
 
-        let module = Module {
-            statements: statements,
-        };
+        let module = Module { statements };
 
         Ok(module)
     }

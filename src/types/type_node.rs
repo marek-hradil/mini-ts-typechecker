@@ -1,20 +1,21 @@
+use super::Parent;
 use super::{
     identifier::Identifier, parameter::Parameter, property_declaration::PropertyDeclaration,
-    type_parameter::TypeParameter, Location, Node,
+    type_parameter::TypeParameter, Node,
 };
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
-use crate::parser::{parse_expected, parse_identifier, parse_sequence, try_consume_token};
+use crate::parser::{parse_expected, parse_sequence, try_consume_token};
 
 #[derive(Debug)]
 pub enum TypeNode {
     ObjectLiteralType {
-        location: Location,
+        parent: Parent,
         properties: Vec<PropertyDeclaration>,
     },
     Identifier(Identifier),
     SignatureDeclaration {
-        location: Location,
+        parent: Parent,
         type_parameters: Vec<TypeParameter>,
         parameters: Vec<Parameter>,
         typename: Box<TypeNode>,
@@ -34,8 +35,8 @@ impl TypeNode {
             )?;
 
             Ok(TypeNode::ObjectLiteralType {
-                location: Default::default(),
-                properties: properties,
+                parent: None,
+                properties,
             })
         } else if try_consume_token(lexer, &TokenType::LessThan) {
             let type_parameters = parse_sequence(
@@ -59,9 +60,9 @@ impl TypeNode {
             let typename = TypeNode::parse(lexer)?;
 
             Ok(TypeNode::SignatureDeclaration {
-                location: Default::default(),
-                type_parameters: type_parameters,
-                parameters: parameters,
+                parent: None,
+                type_parameters,
+                parameters,
                 typename: Box::new(typename),
             })
         } else if try_consume_token(lexer, &TokenType::OpenParen) {
@@ -77,16 +78,13 @@ impl TypeNode {
             let typename = TypeNode::parse(lexer)?;
 
             Ok(TypeNode::SignatureDeclaration {
-                location: Default::default(),
+                parent: None,
                 type_parameters: Vec::new(),
-                parameters: parameters,
+                parameters,
                 typename: Box::new(typename),
             })
         } else {
-            Ok(TypeNode::Identifier(Identifier {
-                text: parse_identifier(lexer)?,
-                location: Default::default(),
-            }))
+            Ok(TypeNode::Identifier(Identifier::parse(lexer)?))
         }
     }
 }

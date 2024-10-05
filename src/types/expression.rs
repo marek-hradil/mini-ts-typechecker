@@ -1,12 +1,11 @@
+use super::Parent;
 use super::{
     identifier::Identifier, parameter::Parameter, property_assignment::PropertyAssignment,
-    statement::Statement, type_node::TypeNode, type_parameter::TypeParameter, Location, Node,
+    statement::Statement, type_node::TypeNode, type_parameter::TypeParameter, Node,
 };
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
-use crate::parser::{
-    parse_expected, parse_identifier, parse_sequence, try_consume_token, try_parse_prefixed,
-};
+use crate::parser::{parse_expected, parse_sequence, try_consume_token, try_parse_prefixed};
 
 #[derive(Debug)]
 pub enum Expression {
@@ -18,16 +17,16 @@ pub enum Expression {
         value: String,
     },
     Assignment {
-        location: Location,
+        parent: Parent,
         name: Identifier,
         value: Box<Expression>,
     },
     Object {
-        location: Location,
+        parent: Parent,
         properties: Vec<PropertyAssignment>,
     },
     Function {
-        location: Location,
+        parent: Parent,
         name: Option<Identifier>,
         type_parameters: Option<Vec<TypeParameter>>,
         parameters: Vec<Parameter>,
@@ -35,7 +34,7 @@ pub enum Expression {
         body: Vec<Statement>,
     },
     Call {
-        location: Location,
+        parent: Parent,
         expression: Box<Expression>,
         type_arguments: Option<Vec<TypeNode>>,
         arguments: Vec<Box<Expression>>,
@@ -67,9 +66,9 @@ impl Expression {
             )?;
 
             Ok(Expression::Call {
-                location: Default::default(),
+                parent: None,
                 expression: Box::new(expression),
-                type_arguments: type_arguments,
+                type_arguments,
                 arguments: arguments.into_iter().map(Box::new).collect(),
             })
         } else {
@@ -87,15 +86,12 @@ impl Expression {
             )?;
 
             Ok(Expression::Object {
-                location: Default::default(),
-                properties: properties,
+                parent: None,
+                properties,
             })
         } else if try_consume_token(lexer, &TokenType::Function) {
             let name = if Some(&TokenType::Identifier) == lexer.get_type() {
-                Some(Identifier {
-                    text: parse_identifier(lexer)?,
-                    location: Default::default(),
-                })
+                Some(Identifier::parse(lexer)?)
             } else {
                 None
             };
@@ -132,12 +128,12 @@ impl Expression {
             )?;
 
             Ok(Expression::Function {
-                location: Default::default(),
-                name: name,
-                type_parameters: type_parameters,
-                parameters: parameters,
-                typename: typename,
-                body: body,
+                parent: None,
+                name,
+                type_parameters,
+                parameters,
+                typename,
+                body,
             })
         } else {
             match lexer.get_type() {
@@ -151,22 +147,16 @@ impl Expression {
     }
 
     fn parse_identifier_or_assignment(lexer: &mut Lexer) -> Result<Expression, ParsingError> {
-        let text = parse_identifier(lexer)?;
+        let name = Identifier::parse(lexer)?;
 
         if let Some(expression) = try_parse_prefixed(lexer, Expression::parse, TokenType::Equals) {
             Ok(Expression::Assignment {
-                location: Default::default(),
-                name: Identifier {
-                    text: text,
-                    location: Default::default(),
-                },
+                parent: None,
+                name: name,
                 value: Box::new(expression),
             })
         } else {
-            Ok(Expression::Identifier(Identifier {
-                text: text,
-                location: Default::default(),
-            }))
+            Ok(Expression::Identifier(name))
         }
     }
 

@@ -7,16 +7,6 @@ pub fn parse(lexer: &mut Lexer) -> Result<Module, ParsingError> {
     Module::parse(lexer)
 }
 
-pub fn parse_identifier(lexer: &mut Lexer) -> Result<String, ParsingError> {
-    match lexer.get() {
-        Some(token) if token.token_type == TokenType::Identifier => {
-            lexer.next();
-            Ok(token.text.clone())
-        }
-        _ => Err(ParsingError::UnexpectedEndOfFileError),
-    }
-}
-
 pub fn parse_sequence<T>(
     lexer: &mut Lexer,
     parse_element: fn(&mut Lexer) -> Result<T, ParsingError>,

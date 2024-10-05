@@ -117,7 +117,7 @@ impl Lexer {
             Ok(Token {
                 token_type: TokenType::StringLiteral,
                 text: self.input[start..self.pos].to_string(),
-                start: start,
+                start,
                 end: self.pos,
             })
         }

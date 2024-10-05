@@ -1,12 +1,11 @@
 use super::identifier::Identifier;
-use super::{Location, Node};
+use super::{Node, Parent};
 use crate::errors::ParsingError;
 use crate::lexer::Lexer;
-use crate::parser::parse_identifier;
 
 #[derive(Debug)]
 pub struct TypeParameter {
-    location: Location,
+    parent: Parent,
     name: Identifier,
 }
 
@@ -14,14 +13,8 @@ impl Node for TypeParameter {}
 
 impl TypeParameter {
     pub fn parse(lexer: &mut Lexer) -> Result<TypeParameter, ParsingError> {
-        let name = parse_identifier(lexer)?;
+        let name = Identifier::parse(lexer)?;
 
-        Ok(TypeParameter {
-            name: Identifier {
-                text: name,
-                location: Default::default(),
-            },
-            location: Default::default(),
-        })
+        Ok(TypeParameter { parent: None, name })
     }
 }

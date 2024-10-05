@@ -1,13 +1,13 @@
+use super::expression::Expression;
 use super::identifier::Identifier;
-use super::Node;
-use super::{expression::Expression, Location};
+use super::{Node, Parent};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
-use crate::parser::{parse_expected, parse_identifier};
+use crate::parser::parse_expected;
 
 #[derive(Debug)]
 pub struct PropertyAssignment {
-    location: Location,
+    parent: Parent,
     name: Identifier,
     value: Expression,
 }
@@ -16,18 +16,15 @@ impl Node for PropertyAssignment {}
 
 impl PropertyAssignment {
     pub fn parse(lexer: &mut Lexer) -> Result<PropertyAssignment, ParsingError> {
-        let text = parse_identifier(lexer)?;
+        let name = Identifier::parse(lexer)?;
         parse_expected(lexer, TokenType::Colon)?;
 
         let value = Expression::parse(lexer)?;
 
         Ok(PropertyAssignment {
-            name: Identifier {
-                text: text,
-                location: Default::default(),
-            },
+            name,
             value,
-            location: Default::default(),
+            parent: None,
         })
     }
 }

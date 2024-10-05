@@ -12,13 +12,4 @@ pub mod type_parameter;
 
 pub trait Node: Debug {}
 
-#[derive(Debug)]
-pub struct Location {
-    parent: Option<RefCell<Weak<dyn Node>>>,
-}
-
-impl Default for Location {
-    fn default() -> Self {
-        Location { parent: None }
-    }
-}
+type Parent = Option<RefCell<Weak<dyn Node>>>;
