@@ -1,6 +1,6 @@
 use super::{
-    parameter::Parameter, property_assignment::PropertyAssignment, statement::Statement,
-    type_node::TypeNode, type_parameter::TypeParameter, Location, Node,
+    identifier::Identifier, parameter::Parameter, property_assignment::PropertyAssignment,
+    statement::Statement, type_node::TypeNode, type_parameter::TypeParameter, Location, Node,
 };
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
@@ -10,9 +10,7 @@ use crate::parser::{
 
 #[derive(Debug)]
 pub enum Expression {
-    Identifier {
-        text: String,
-    },
+    Identifier(Identifier),
     NumericLiteral {
         value: i64,
     },
@@ -21,7 +19,7 @@ pub enum Expression {
     },
     Assignment {
         location: Location,
-        name: String,
+        name: Identifier,
         value: Box<Expression>,
     },
     Object {
@@ -30,7 +28,7 @@ pub enum Expression {
     },
     Function {
         location: Location,
-        name: Option<String>,
+        name: Option<Identifier>,
         type_parameters: Option<Vec<TypeParameter>>,
         parameters: Vec<Parameter>,
         typename: Option<TypeNode>,
@@ -45,7 +43,6 @@ pub enum Expression {
 }
 
 impl Node for Expression {}
-
 impl Expression {
     pub fn parse(lexer: &mut Lexer) -> Result<Expression, ParsingError> {
         let expression = Expression::parse_below_call(lexer)?;
@@ -95,7 +92,10 @@ impl Expression {
             })
         } else if try_consume_token(lexer, &TokenType::Function) {
             let name = if Some(&TokenType::Identifier) == lexer.get_type() {
-                Some(parse_identifier(lexer)?)
+                Some(Identifier {
+                    text: parse_identifier(lexer)?,
+                    location: Default::default(),
+                })
             } else {
                 None
             };
@@ -151,16 +151,22 @@ impl Expression {
     }
 
     fn parse_identifier_or_assignment(lexer: &mut Lexer) -> Result<Expression, ParsingError> {
-        let name = parse_identifier(lexer)?;
+        let text = parse_identifier(lexer)?;
 
         if let Some(expression) = try_parse_prefixed(lexer, Expression::parse, TokenType::Equals) {
             Ok(Expression::Assignment {
                 location: Default::default(),
-                name,
+                name: Identifier {
+                    text: text,
+                    location: Default::default(),
+                },
                 value: Box::new(expression),
             })
         } else {
-            Ok(Expression::Identifier { text: name })
+            Ok(Expression::Identifier(Identifier {
+                text: text,
+                location: Default::default(),
+            }))
         }
     }
 

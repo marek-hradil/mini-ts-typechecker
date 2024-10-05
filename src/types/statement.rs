@@ -1,4 +1,4 @@
-use super::{expression::Expression, type_node::TypeNode, Location};
+use super::{expression::Expression, identifier::Identifier, type_node::TypeNode, Location, Node};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_expected, parse_identifier, try_consume_token, try_parse_prefixed};
@@ -7,13 +7,13 @@ use crate::parser::{parse_expected, parse_identifier, try_consume_token, try_par
 pub enum Statement {
     Var {
         location: Location,
-        name: String,
+        name: Identifier,
         typename: Option<TypeNode>,
         initializer: Expression,
     },
     TypeAlias {
         location: Location,
-        name: String,
+        name: Identifier,
         typename: TypeNode,
     },
     ExpressionStatement {
@@ -25,6 +25,8 @@ pub enum Statement {
         expression: Expression,
     },
 }
+
+impl Node for Statement {}
 
 impl Statement {
     pub fn parse(lexer: &mut Lexer) -> Result<Statement, ParsingError> {
@@ -40,7 +42,7 @@ impl Statement {
     }
 
     fn parse_var(lexer: &mut Lexer) -> Result<Statement, ParsingError> {
-        let name = parse_identifier(lexer)?;
+        let text = parse_identifier(lexer)?;
         let typename = try_parse_prefixed(lexer, TypeNode::parse, TokenType::Colon);
 
         parse_expected(lexer, TokenType::Equals)?;
@@ -48,7 +50,10 @@ impl Statement {
         let initializer = Expression::parse(lexer)?;
 
         Ok(Statement::Var {
-            name,
+            name: Identifier {
+                text: text,
+                location: Default::default(),
+            },
             typename,
             initializer,
             location: Default::default(),
@@ -56,14 +61,17 @@ impl Statement {
     }
 
     fn parse_type_alias(lexer: &mut Lexer) -> Result<Statement, ParsingError> {
-        let name = parse_identifier(lexer)?;
+        let text = parse_identifier(lexer)?;
 
         parse_expected(lexer, TokenType::Equals)?;
 
         let typename = TypeNode::parse(lexer)?;
 
         Ok(Statement::TypeAlias {
-            name,
+            name: Identifier {
+                text: text,
+                location: Default::default(),
+            },
             typename,
             location: Default::default(),
         })

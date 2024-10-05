@@ -1,6 +1,7 @@
-use std::fmt::Debug;
+use std::{cell::RefCell, fmt::Debug, rc::Weak};
 
 pub mod expression;
+pub mod identifier;
 pub mod module;
 pub mod parameter;
 pub mod property_assignment;
@@ -9,21 +10,11 @@ pub mod statement;
 pub mod type_node;
 pub mod type_parameter;
 
-pub trait Node {}
-
-trait WithLocation {
-    fn set_parent(&mut self, parent: Box<dyn Node>) -> ();
-}
-
-impl Debug for dyn Node {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Node")
-    }
-}
+pub trait Node: Debug {}
 
 #[derive(Debug)]
 pub struct Location {
-    parent: Option<Box<dyn Node>>,
+    parent: Option<RefCell<Weak<dyn Node>>>,
 }
 
 impl Default for Location {

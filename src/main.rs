@@ -3,6 +3,7 @@ use crate::parser::parse;
 use std::env;
 use std::fs;
 
+mod binder;
 mod errors;
 mod lexer;
 mod parser;
@@ -25,7 +26,7 @@ fn main() {
 }
 
 pub fn run_checker(contents: String) {
-    let mut lexer = Lexer::new(&contents);
+    let mut lexer = Lexer::new(contents.leak());
     let ast = parse(&mut lexer);
 
     match ast {

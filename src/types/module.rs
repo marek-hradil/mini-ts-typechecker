@@ -1,4 +1,4 @@
-use super::statement::Statement;
+use super::{statement::Statement, Node};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::parse_sequence;
@@ -7,6 +7,8 @@ use crate::parser::parse_sequence;
 pub struct Module {
     statements: Vec<Statement>,
 }
+
+impl Node for Module {}
 
 impl Module {
     pub fn parse(lexer: &mut Lexer) -> Result<Module, ParsingError> {
@@ -17,6 +19,10 @@ impl Module {
             TokenType::EOF,
         )?;
 
-        Ok(Module { statements })
+        let module = Module {
+            statements: statements,
+        };
+
+        Ok(module)
     }
 }

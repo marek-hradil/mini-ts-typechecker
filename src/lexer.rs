@@ -43,14 +43,14 @@ static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "return" => TokenType::Return,
 };
 
-pub struct Lexer<'a> {
-    input: &'a str,
+pub struct Lexer {
+    input: &'static str,
     pos: usize,
     current: Option<Result<Token, LexingError>>,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str) -> Lexer<'a> {
+impl Lexer {
+    pub fn new(input: &'static str) -> Lexer {
         Lexer {
             input,
             pos: 0,
@@ -219,7 +219,7 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
+impl Iterator for Lexer {
     type Item = Result<Token, LexingError>;
 
     fn next(&mut self) -> Option<Self::Item> {

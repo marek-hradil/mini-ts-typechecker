@@ -1,6 +1,6 @@
 use super::{
-    parameter::Parameter, property_declaration::PropertyDeclaration, type_parameter::TypeParameter,
-    Location,
+    identifier::Identifier, parameter::Parameter, property_declaration::PropertyDeclaration,
+    type_parameter::TypeParameter, Location, Node,
 };
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
@@ -12,9 +12,7 @@ pub enum TypeNode {
         location: Location,
         properties: Vec<PropertyDeclaration>,
     },
-    Identifier {
-        text: String,
-    },
+    Identifier(Identifier),
     SignatureDeclaration {
         location: Location,
         type_parameters: Vec<TypeParameter>,
@@ -22,6 +20,8 @@ pub enum TypeNode {
         typename: Box<TypeNode>,
     },
 }
+
+impl Node for TypeNode {}
 
 impl TypeNode {
     pub fn parse(lexer: &mut Lexer) -> Result<TypeNode, ParsingError> {
@@ -83,9 +83,10 @@ impl TypeNode {
                 typename: Box::new(typename),
             })
         } else {
-            Ok(TypeNode::Identifier {
+            Ok(TypeNode::Identifier(Identifier {
                 text: parse_identifier(lexer)?,
-            })
+                location: Default::default(),
+            }))
         }
     }
 }
