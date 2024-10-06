@@ -30,4 +30,8 @@ impl TypeParameter {
 
         self.name.borrow().bind(&self_rc);
     }
+
+    pub fn get_name(self: &Rc<Self>) -> String {
+        self.name.borrow().text.clone()
+    }
 }

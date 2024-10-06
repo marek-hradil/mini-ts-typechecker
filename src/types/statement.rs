@@ -1,9 +1,11 @@
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use super::{
     create_child, create_empty_parent, create_optional_child, Child, OptionalChild, Parent,
 };
 use super::{expression::Expression, identifier::Identifier, type_node::TypeNode, Node};
+use crate::binder::Table;
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_expected, try_consume_token, try_parse_prefixed};
@@ -46,7 +48,7 @@ impl Statement {
         }
     }
 
-    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>, locals: &Table) {
         let self_rc = Rc::clone(self) as Rc<dyn Node>;
         let parent_weak = Rc::downgrade(parent);
 
@@ -82,6 +84,19 @@ impl Statement {
             Statement::Return { parent, expression } => {
                 *parent.borrow_mut() = Some(parent_weak);
                 expression.borrow().bind(&self_rc);
+            }
+        }
+    }
+
+    pub fn get_name(self: &Rc<Self>) -> String {
+        match &**self {
+            Statement::TypeAlias { name, .. } => name.borrow().text.clone(),
+            Statement::Var { name, .. } => name.borrow().text.clone(),
+            Statement::ExpressionStatement { .. } => {
+                panic!("Cannot get name of expression statement")
+            }
+            Statement::Return { .. } => {
+                panic!("Cannot get name of return statement")
             }
         }
     }

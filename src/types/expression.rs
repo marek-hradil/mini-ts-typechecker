@@ -1,3 +1,4 @@
+use core::panic;
 use std::rc::Rc;
 
 use super::{
@@ -8,6 +9,7 @@ use super::{
     identifier::Identifier, parameter::Parameter, property_assignment::PropertyAssignment,
     statement::Statement, type_node::TypeNode, type_parameter::TypeParameter, Node,
 };
+use crate::binder::Table;
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_expected, parse_sequence, try_consume_token, try_parse_prefixed};
@@ -37,6 +39,7 @@ pub enum Expression {
         parameters: Children<Parameter>,
         typename: OptionalChild<TypeNode>,
         body: Children<Statement>,
+        locals: Table,
     },
     Call {
         parent: Parent,
@@ -115,6 +118,7 @@ impl Expression {
                 typename,
                 body,
                 parent,
+                locals,
             } => {
                 *parent.borrow_mut() = Some(parent_weak);
 
@@ -135,7 +139,7 @@ impl Expression {
                 }
 
                 for statement in body.borrow().iter() {
-                    statement.bind(&self_rc);
+                    statement.bind(&self_rc, locals);
                 }
             }
             Expression::Call {
@@ -156,6 +160,13 @@ impl Expression {
                     argument.bind(&self_rc);
                 }
             }
+        }
+    }
+
+    pub fn get_name(self: &Rc<Self>) -> String {
+        match &**self {
+            Expression::Object { .. } => String::from("__object"),
+            _ => panic!("Cannot get name of the expression"),
         }
     }
 
@@ -217,6 +228,7 @@ impl Expression {
                 parameters: create_children(parameters),
                 typename: create_optional_child(typename),
                 body: create_children(body),
+                locals: Table::new(),
             })
         } else {
             match lexer.get_type() {

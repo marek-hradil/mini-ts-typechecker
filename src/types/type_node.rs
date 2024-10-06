@@ -5,6 +5,7 @@ use super::{
     identifier::Identifier, parameter::Parameter, property_declaration::PropertyDeclaration,
     type_parameter::TypeParameter, Node,
 };
+use crate::binder::Table;
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_expected, parse_sequence, try_consume_token};
@@ -21,6 +22,7 @@ pub enum TypeNode {
         type_parameters: Children<TypeParameter>,
         parameters: Children<Parameter>,
         typename: Child<TypeNode>,
+        locals: Table,
     },
 }
 
@@ -66,6 +68,7 @@ impl TypeNode {
                 type_parameters: create_children(type_parameters),
                 parameters: create_children(parameters),
                 typename: create_child(typename),
+                locals: Table::new(),
             })
         } else if try_consume_token(lexer, &TokenType::OpenParen) {
             let parameters = parse_sequence(
@@ -84,6 +87,7 @@ impl TypeNode {
                 type_parameters: create_children(vec![]),
                 parameters: create_children(parameters),
                 typename: create_child(typename),
+                locals: Table::new(),
             })
         } else {
             Ok(TypeNode::Identifier(create_child(Identifier::parse(
@@ -112,6 +116,7 @@ impl TypeNode {
                 type_parameters,
                 parameters,
                 typename,
+                ..
             } => {
                 *parent.borrow_mut() = Some(parent_weak);
                 type_parameters
