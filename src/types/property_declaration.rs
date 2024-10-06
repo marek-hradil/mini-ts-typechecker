@@ -1,13 +1,12 @@
-use std::rc::Rc;
-
-use super::identifier::Identifier;
-use super::type_node::TypeNode;
-use super::{
-    create_child, create_empty_parent, create_optional_child, Child, Node, OptionalChild, Parent,
+use crate::binder::{
+    create_child, create_empty_parent, create_optional_child, declare_symbol, AstNode, Child,
+    Meaning, OptionalChild, Parent, Table,
 };
-use crate::errors::ParsingError;
+use crate::errors::{BindingError, ParsingError};
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::try_parse_prefixed;
+use crate::types::{identifier::Identifier, type_node::TypeNode};
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct PropertyDeclaration {
@@ -16,7 +15,15 @@ pub struct PropertyDeclaration {
     typename: OptionalChild<TypeNode>,
 }
 
-impl Node for PropertyDeclaration {}
+impl AstNode for PropertyDeclaration {
+    fn get_meaning(&self) -> Meaning {
+        Meaning::Value
+    }
+
+    fn get_name(&self) -> String {
+        self.name.borrow().text.clone()
+    }
+}
 
 impl PropertyDeclaration {
     pub fn parse(lexer: &mut Lexer) -> Result<PropertyDeclaration, ParsingError> {
@@ -30,19 +37,21 @@ impl PropertyDeclaration {
         })
     }
 
-    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+    pub fn bind(
+        self: &Rc<Self>,
+        parent: &Rc<dyn AstNode>,
+        members: &mut Table,
+    ) -> Result<(), BindingError> {
         let parent_weak = Rc::downgrade(parent);
-        let self_rc = Rc::clone(self) as Rc<dyn Node>;
+        let self_rc = Rc::clone(self) as Rc<dyn AstNode>;
         *self.parent.borrow_mut() = Some(parent_weak);
 
-        self.name.borrow().bind(&self_rc);
+        self.name.borrow().bind(&self_rc)?;
 
         if let Some(type_node_rc) = self.typename.borrow().as_ref() {
-            type_node_rc.bind(&self_rc);
+            type_node_rc.bind(&self_rc)?;
         }
-    }
 
-    pub fn get_name(self: &Rc<Self>) -> String {
-        self.name.borrow().text.clone()
+        declare_symbol(members, &self_rc)
     }
 }

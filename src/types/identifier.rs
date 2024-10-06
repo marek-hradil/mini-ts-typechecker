@@ -1,11 +1,9 @@
-use std::rc::Rc;
-
 use crate::{
-    errors::ParsingError,
+    binder::{create_empty_parent, AstNode, Meaning, Parent},
+    errors::{BindingError, ParsingError},
     lexer::{Lexer, TokenType},
 };
-
-use super::{create_empty_parent, Node, Parent};
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Identifier {
@@ -13,7 +11,15 @@ pub struct Identifier {
     pub text: String,
 }
 
-impl Node for Identifier {}
+impl AstNode for Identifier {
+    fn get_meaning(&self) -> Meaning {
+        Meaning::Value
+    }
+
+    fn get_name(&self) -> String {
+        self.text.clone()
+    }
+}
 
 impl Identifier {
     pub fn parse(lexer: &mut Lexer) -> Result<Identifier, ParsingError> {
@@ -29,8 +35,10 @@ impl Identifier {
         }
     }
 
-    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn AstNode>) -> Result<(), BindingError> {
         let parent_weak = Rc::downgrade(parent);
         *self.parent.borrow_mut() = Some(parent_weak);
+
+        Ok(())
     }
 }

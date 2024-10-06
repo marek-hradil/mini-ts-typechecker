@@ -1,18 +1,17 @@
-use core::panic;
-use std::rc::Rc;
-
-use super::{
-    create_child, create_children, create_empty_parent, create_optional_child, Child, Children,
-    OptionalChild, Parent,
+use crate::binder::{
+    create_child, create_children, create_empty_parent, create_optional_child, AstNode, Child,
+    Children, Meaning, OptionalChild, Parent, Table,
 };
-use super::{
-    identifier::Identifier, parameter::Parameter, property_assignment::PropertyAssignment,
-    statement::Statement, type_node::TypeNode, type_parameter::TypeParameter, Node,
-};
-use crate::binder::Table;
-use crate::errors::ParsingError;
+use crate::errors::{BindingError, ParsingError};
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::{parse_expected, parse_sequence, try_consume_token, try_parse_prefixed};
+use crate::types::{
+    identifier::Identifier, parameter::Parameter, property_assignment::PropertyAssignment,
+    statement::Statement, type_node::TypeNode, type_parameter::TypeParameter,
+};
+use core::panic;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum Expression {
@@ -31,6 +30,7 @@ pub enum Expression {
     Object {
         parent: Parent,
         properties: Children<PropertyAssignment>,
+        members: RefCell<Table>,
     },
     Function {
         parent: Parent,
@@ -39,7 +39,7 @@ pub enum Expression {
         parameters: Children<Parameter>,
         typename: OptionalChild<TypeNode>,
         body: Children<Statement>,
-        locals: Table,
+        locals: RefCell<Table>,
     },
     Call {
         parent: Parent,
@@ -49,7 +49,19 @@ pub enum Expression {
     },
 }
 
-impl Node for Expression {}
+impl AstNode for Expression {
+    fn get_meaning(&self) -> Meaning {
+        Meaning::Value
+    }
+
+    fn get_name(&self) -> String {
+        match self {
+            Expression::Object { .. } => String::from("__object"),
+            _ => panic!("Cannot get name of the expression"),
+        }
+    }
+}
+
 impl Expression {
     pub fn parse(lexer: &mut Lexer) -> Result<Expression, ParsingError> {
         let expression = Expression::parse_below_call(lexer)?;
@@ -84,16 +96,17 @@ impl Expression {
         }
     }
 
-    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn AstNode>) -> Result<(), BindingError> {
         let parent_weak = Rc::downgrade(parent);
-        let self_rc = Rc::clone(self) as Rc<dyn Node>;
+        let self_rc = Rc::clone(self) as Rc<dyn AstNode>;
 
         match &**self {
             Expression::Identifier(name) => {
-                name.borrow().bind(&self_rc);
+                name.borrow().bind(&self_rc)?;
+
+                Ok(())
             }
-            Expression::NumericLiteral { .. } => {}
-            Expression::StringLiteral { .. } => {}
+            Expression::NumericLiteral { .. } | Expression::StringLiteral { .. } => Ok(()),
             Expression::Assignment {
                 name,
                 value,
@@ -101,15 +114,23 @@ impl Expression {
             } => {
                 *parent.borrow_mut() = Some(parent_weak);
 
-                name.borrow().bind(&self_rc);
-                value.borrow().bind(&self_rc);
+                name.borrow().bind(&self_rc)?;
+                value.borrow().bind(&self_rc)?;
+
+                Ok(())
             }
-            Expression::Object { properties, parent } => {
+            Expression::Object {
+                properties,
+                parent,
+                members,
+            } => {
                 *parent.borrow_mut() = Some(parent_weak);
 
                 for property in properties.borrow().iter() {
-                    property.bind(&self_rc);
+                    property.bind(&self_rc, &mut members.borrow_mut())?;
                 }
+
+                Ok(())
             }
             Expression::Function {
                 name,
@@ -123,24 +144,26 @@ impl Expression {
                 *parent.borrow_mut() = Some(parent_weak);
 
                 if let Some(name_rc) = name.borrow().as_ref() {
-                    name_rc.bind(&self_rc);
+                    name_rc.bind(&self_rc)?;
                 }
 
                 if let Some(typename_rc) = typename.borrow().as_ref() {
-                    typename_rc.bind(&self_rc);
+                    typename_rc.bind(&self_rc)?;
                 }
 
                 for type_parameter in type_parameters.borrow().iter() {
-                    type_parameter.bind(&self_rc);
+                    type_parameter.bind(&self_rc, &mut locals.borrow_mut())?;
                 }
 
                 for parameter in parameters.borrow().iter() {
-                    parameter.bind(&self_rc);
+                    parameter.bind(&self_rc, &mut locals.borrow_mut())?;
                 }
 
                 for statement in body.borrow().iter() {
-                    statement.bind(&self_rc, locals);
+                    statement.bind(&self_rc, &mut locals.borrow_mut())?;
                 }
+
+                Ok(())
             }
             Expression::Call {
                 expression,
@@ -150,23 +173,18 @@ impl Expression {
             } => {
                 *parent.borrow_mut() = Some(parent_weak);
 
-                expression.borrow().bind(&self_rc);
+                expression.borrow().bind(&self_rc)?;
 
                 for type_argument in type_arguments.borrow().iter() {
-                    type_argument.bind(&self_rc);
+                    type_argument.bind(&self_rc)?;
                 }
 
                 for argument in arguments.borrow().iter() {
-                    argument.bind(&self_rc);
+                    argument.bind(&self_rc)?;
                 }
-            }
-        }
-    }
 
-    pub fn get_name(self: &Rc<Self>) -> String {
-        match &**self {
-            Expression::Object { .. } => String::from("__object"),
-            _ => panic!("Cannot get name of the expression"),
+                Ok(())
+            }
         }
     }
 
@@ -182,6 +200,7 @@ impl Expression {
             Ok(Expression::Object {
                 parent: create_empty_parent(),
                 properties: create_children(properties),
+                members: RefCell::new(Table::new()),
             })
         } else if try_consume_token(lexer, &TokenType::Function) {
             let name = if Some(&TokenType::Identifier) == lexer.get_type() {
@@ -228,7 +247,7 @@ impl Expression {
                 parameters: create_children(parameters),
                 typename: create_optional_child(typename),
                 body: create_children(body),
-                locals: Table::new(),
+                locals: RefCell::new(Table::new()),
             })
         } else {
             match lexer.get_type() {

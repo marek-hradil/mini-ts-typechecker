@@ -8,3 +8,7 @@ pub enum LexingError {
 pub enum ParsingError {
     UnexpectedEndOfFileError,
 }
+
+pub enum BindingError {
+    CannotRedeclareError,
+}

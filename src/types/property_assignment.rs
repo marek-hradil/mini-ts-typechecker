@@ -1,11 +1,11 @@
-use std::rc::Rc;
-
-use super::expression::Expression;
-use super::identifier::Identifier;
-use super::{create_child, create_empty_parent, Child, Node, Parent};
-use crate::errors::ParsingError;
+use crate::binder::{
+    create_child, create_empty_parent, declare_symbol, AstNode, Child, Meaning, Parent, Table,
+};
+use crate::errors::{BindingError, ParsingError};
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::parse_expected;
+use crate::types::{expression::Expression, identifier::Identifier};
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct PropertyAssignment {
@@ -14,7 +14,15 @@ pub struct PropertyAssignment {
     value: Child<Expression>,
 }
 
-impl Node for PropertyAssignment {}
+impl AstNode for PropertyAssignment {
+    fn get_meaning(&self) -> Meaning {
+        Meaning::Value
+    }
+
+    fn get_name(&self) -> String {
+        self.name.borrow().text.clone()
+    }
+}
 
 impl PropertyAssignment {
     pub fn parse(lexer: &mut Lexer) -> Result<PropertyAssignment, ParsingError> {
@@ -30,16 +38,20 @@ impl PropertyAssignment {
         })
     }
 
-    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+    pub fn bind(
+        self: &Rc<Self>,
+        parent: &Rc<dyn AstNode>,
+        members: &mut Table,
+    ) -> Result<(), BindingError> {
         let parent_weak = Rc::downgrade(parent);
-        let self_rc = Rc::clone(self) as Rc<dyn Node>;
+        let self_rc = Rc::clone(self) as Rc<dyn AstNode>;
         *self.parent.borrow_mut() = Some(parent_weak);
 
-        self.name.borrow().bind(&self_rc);
-        self.value.borrow().bind(&self_rc);
-    }
+        self.name.borrow().bind(&self_rc)?;
+        self.value.borrow().bind(&self_rc)?;
 
-    pub fn get_name(self: &Rc<Self>) -> String {
-        self.name.borrow().text.clone()
+        declare_symbol(members, &self_rc)?;
+
+        Ok(())
     }
 }

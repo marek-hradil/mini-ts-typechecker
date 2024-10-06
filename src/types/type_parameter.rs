@@ -1,9 +1,10 @@
-use std::rc::Rc;
-
-use super::identifier::Identifier;
-use super::{create_child, create_empty_parent, Child, Node, Parent};
-use crate::errors::ParsingError;
+use crate::binder::{
+    create_child, create_empty_parent, declare_symbol, AstNode, Child, Meaning, Parent, Table,
+};
+use crate::errors::{BindingError, ParsingError};
 use crate::lexer::Lexer;
+use crate::types::identifier::Identifier;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct TypeParameter {
@@ -11,7 +12,15 @@ pub struct TypeParameter {
     name: Child<Identifier>,
 }
 
-impl Node for TypeParameter {}
+impl AstNode for TypeParameter {
+    fn get_meaning(&self) -> Meaning {
+        Meaning::Type
+    }
+
+    fn get_name(&self) -> String {
+        self.name.borrow().text.clone()
+    }
+}
 
 impl TypeParameter {
     pub fn parse(lexer: &mut Lexer) -> Result<TypeParameter, ParsingError> {
@@ -23,15 +32,19 @@ impl TypeParameter {
         })
     }
 
-    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+    pub fn bind(
+        self: &Rc<Self>,
+        parent: &Rc<dyn AstNode>,
+        locals: &mut Table,
+    ) -> Result<(), BindingError> {
         let parent_weak = Rc::downgrade(parent);
-        let self_rc = Rc::clone(self) as Rc<dyn Node>;
+        let self_rc = Rc::clone(self) as Rc<dyn AstNode>;
         *self.parent.borrow_mut() = Some(parent_weak);
 
-        self.name.borrow().bind(&self_rc);
-    }
+        self.name.borrow().bind(&self_rc)?;
 
-    pub fn get_name(self: &Rc<Self>) -> String {
-        self.name.borrow().text.clone()
+        declare_symbol(locals, &self_rc)?;
+
+        Ok(())
     }
 }
