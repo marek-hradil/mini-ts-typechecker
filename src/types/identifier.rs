@@ -1,9 +1,11 @@
+use std::rc::Rc;
+
 use crate::{
     errors::ParsingError,
     lexer::{Lexer, TokenType},
 };
 
-use super::{Node, Parent};
+use super::{create_empty_parent, Node, Parent};
 
 #[derive(Debug)]
 pub struct Identifier {
@@ -20,10 +22,15 @@ impl Identifier {
                 lexer.next();
                 Ok(Identifier {
                     text: token.text.clone(),
-                    parent: None,
+                    parent: create_empty_parent(),
                 })
             }
             _ => Err(ParsingError::UnexpectedEndOfFileError),
         }
+    }
+
+    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+        let parent_weak = Rc::downgrade(parent);
+        *self.parent.borrow_mut() = Some(parent_weak);
     }
 }

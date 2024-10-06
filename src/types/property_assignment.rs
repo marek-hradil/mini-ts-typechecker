@@ -1,6 +1,8 @@
+use std::rc::Rc;
+
 use super::expression::Expression;
 use super::identifier::Identifier;
-use super::{Node, Parent};
+use super::{create_child, create_empty_parent, Child, Node, Parent};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::parse_expected;
@@ -8,8 +10,8 @@ use crate::parser::parse_expected;
 #[derive(Debug)]
 pub struct PropertyAssignment {
     parent: Parent,
-    name: Identifier,
-    value: Expression,
+    name: Child<Identifier>,
+    value: Child<Expression>,
 }
 
 impl Node for PropertyAssignment {}
@@ -22,9 +24,18 @@ impl PropertyAssignment {
         let value = Expression::parse(lexer)?;
 
         Ok(PropertyAssignment {
-            name,
-            value,
-            parent: None,
+            name: create_child(name),
+            value: create_child(value),
+            parent: create_empty_parent(),
         })
+    }
+
+    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+        let parent_weak = Rc::downgrade(parent);
+        let self_rc = Rc::clone(self) as Rc<dyn Node>;
+        *self.parent.borrow_mut() = Some(parent_weak);
+
+        self.name.borrow().bind(&self_rc);
+        self.value.borrow().bind(&self_rc);
     }
 }

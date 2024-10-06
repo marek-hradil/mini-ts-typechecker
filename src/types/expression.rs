@@ -1,4 +1,9 @@
-use super::Parent;
+use std::rc::Rc;
+
+use super::{
+    create_child, create_children, create_empty_parent, create_optional_child, Child, Children,
+    OptionalChild, Parent,
+};
 use super::{
     identifier::Identifier, parameter::Parameter, property_assignment::PropertyAssignment,
     statement::Statement, type_node::TypeNode, type_parameter::TypeParameter, Node,
@@ -9,7 +14,7 @@ use crate::parser::{parse_expected, parse_sequence, try_consume_token, try_parse
 
 #[derive(Debug)]
 pub enum Expression {
-    Identifier(Identifier),
+    Identifier(Child<Identifier>),
     NumericLiteral {
         value: i64,
     },
@@ -18,26 +23,26 @@ pub enum Expression {
     },
     Assignment {
         parent: Parent,
-        name: Identifier,
-        value: Box<Expression>,
+        name: Child<Identifier>,
+        value: Child<Expression>,
     },
     Object {
         parent: Parent,
-        properties: Vec<PropertyAssignment>,
+        properties: Children<PropertyAssignment>,
     },
     Function {
         parent: Parent,
-        name: Option<Identifier>,
-        type_parameters: Option<Vec<TypeParameter>>,
-        parameters: Vec<Parameter>,
-        typename: Option<TypeNode>,
-        body: Vec<Statement>,
+        name: OptionalChild<Identifier>,
+        type_parameters: Children<TypeParameter>,
+        parameters: Children<Parameter>,
+        typename: OptionalChild<TypeNode>,
+        body: Children<Statement>,
     },
     Call {
         parent: Parent,
-        expression: Box<Expression>,
-        type_arguments: Option<Vec<TypeNode>>,
-        arguments: Vec<Box<Expression>>,
+        expression: Child<Expression>,
+        type_arguments: Children<TypeNode>,
+        arguments: Children<Expression>,
     },
 }
 
@@ -47,14 +52,14 @@ impl Expression {
         let expression = Expression::parse_below_call(lexer)?;
 
         let type_arguments = if try_consume_token(lexer, &TokenType::LessThan) {
-            Some(parse_sequence(
+            parse_sequence(
                 lexer,
                 TypeNode::parse,
                 TokenType::Comma,
                 TokenType::GreaterThan,
-            )?)
+            )?
         } else {
-            None
+            vec![]
         };
 
         if try_consume_token(lexer, &TokenType::OpenParen) {
@@ -66,13 +71,91 @@ impl Expression {
             )?;
 
             Ok(Expression::Call {
-                parent: None,
-                expression: Box::new(expression),
-                type_arguments,
-                arguments: arguments.into_iter().map(Box::new).collect(),
+                parent: create_empty_parent(),
+                expression: create_child(expression),
+                type_arguments: create_children(type_arguments),
+                arguments: create_children(arguments),
             })
         } else {
             Ok(expression)
+        }
+    }
+
+    pub fn bind(self: &Rc<Self>, parent: &Rc<dyn Node>) {
+        let parent_weak = Rc::downgrade(parent);
+        let self_rc = Rc::clone(self) as Rc<dyn Node>;
+
+        match &**self {
+            Expression::Identifier(name) => {
+                name.borrow().bind(&self_rc);
+            }
+            Expression::NumericLiteral { .. } => {}
+            Expression::StringLiteral { .. } => {}
+            Expression::Assignment {
+                name,
+                value,
+                parent,
+            } => {
+                *parent.borrow_mut() = Some(parent_weak);
+
+                name.borrow().bind(&self_rc);
+                value.borrow().bind(&self_rc);
+            }
+            Expression::Object { properties, parent } => {
+                *parent.borrow_mut() = Some(parent_weak);
+
+                for property in properties.borrow().iter() {
+                    property.bind(&self_rc);
+                }
+            }
+            Expression::Function {
+                name,
+                type_parameters,
+                parameters,
+                typename,
+                body,
+                parent,
+            } => {
+                *parent.borrow_mut() = Some(parent_weak);
+
+                if let Some(name_rc) = name.borrow().as_ref() {
+                    name_rc.bind(&self_rc);
+                }
+
+                if let Some(typename_rc) = typename.borrow().as_ref() {
+                    typename_rc.bind(&self_rc);
+                }
+
+                for type_parameter in type_parameters.borrow().iter() {
+                    type_parameter.bind(&self_rc);
+                }
+
+                for parameter in parameters.borrow().iter() {
+                    parameter.bind(&self_rc);
+                }
+
+                for statement in body.borrow().iter() {
+                    statement.bind(&self_rc);
+                }
+            }
+            Expression::Call {
+                expression,
+                type_arguments,
+                arguments,
+                parent,
+            } => {
+                *parent.borrow_mut() = Some(parent_weak);
+
+                expression.borrow().bind(&self_rc);
+
+                for type_argument in type_arguments.borrow().iter() {
+                    type_argument.bind(&self_rc);
+                }
+
+                for argument in arguments.borrow().iter() {
+                    argument.bind(&self_rc);
+                }
+            }
         }
     }
 
@@ -86,8 +169,8 @@ impl Expression {
             )?;
 
             Ok(Expression::Object {
-                parent: None,
-                properties,
+                parent: create_empty_parent(),
+                properties: create_children(properties),
             })
         } else if try_consume_token(lexer, &TokenType::Function) {
             let name = if Some(&TokenType::Identifier) == lexer.get_type() {
@@ -97,14 +180,14 @@ impl Expression {
             };
 
             let type_parameters = if try_consume_token(lexer, &TokenType::LessThan) {
-                Some(parse_sequence(
+                parse_sequence(
                     lexer,
                     TypeParameter::parse,
                     TokenType::Comma,
                     TokenType::GreaterThan,
-                )?)
+                )?
             } else {
-                None
+                vec![]
             };
 
             parse_expected(lexer, TokenType::OpenParen)?;
@@ -128,12 +211,12 @@ impl Expression {
             )?;
 
             Ok(Expression::Function {
-                parent: None,
-                name,
-                type_parameters,
-                parameters,
-                typename,
-                body,
+                parent: create_empty_parent(),
+                name: create_optional_child(name),
+                type_parameters: create_children(type_parameters),
+                parameters: create_children(parameters),
+                typename: create_optional_child(typename),
+                body: create_children(body),
             })
         } else {
             match lexer.get_type() {
@@ -151,12 +234,12 @@ impl Expression {
 
         if let Some(expression) = try_parse_prefixed(lexer, Expression::parse, TokenType::Equals) {
             Ok(Expression::Assignment {
-                parent: None,
-                name: name,
-                value: Box::new(expression),
+                parent: create_empty_parent(),
+                name: create_child(name),
+                value: create_child(expression),
             })
         } else {
-            Ok(Expression::Identifier(name))
+            Ok(Expression::Identifier(create_child(name)))
         }
     }
 

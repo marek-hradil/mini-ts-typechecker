@@ -1,3 +1,4 @@
+use crate::binder::bind;
 use crate::lexer::Lexer;
 use crate::parser::parse;
 use std::env;
@@ -28,13 +29,7 @@ fn main() {
 pub fn run_checker(contents: String) {
     let mut lexer = Lexer::new(contents.leak());
     let ast = parse(&mut lexer);
+    let binded_ast = bind(ast.unwrap()); // @todo: handle unwrap
 
-    match ast {
-        Ok(ast) => {
-            println!("{:?}", ast);
-        }
-        Err(error) => {
-            println!("Error: {:?}", error);
-        }
-    }
+    println!("{:?}", binded_ast);
 }

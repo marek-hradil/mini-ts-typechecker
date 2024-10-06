@@ -1,3 +1,6 @@
+use std::rc::Rc;
+
+use super::{create_children, Children};
 use super::{statement::Statement, Node};
 use crate::errors::ParsingError;
 use crate::lexer::{Lexer, TokenType};
@@ -5,7 +8,7 @@ use crate::parser::parse_sequence;
 
 #[derive(Debug)]
 pub struct Module {
-    statements: Vec<Statement>,
+    pub statements: Children<Statement>,
 }
 
 impl Node for Module {}
@@ -19,8 +22,17 @@ impl Module {
             TokenType::EOF,
         )?;
 
-        let module = Module { statements };
+        let module = Module {
+            statements: create_children(statements),
+        };
 
         Ok(module)
+    }
+
+    pub fn bind(self: &Rc<Self>) {
+        let self_rc: Rc<dyn Node> = self.clone();
+        for statement_rc in self.statements.borrow().iter() {
+            statement_rc.bind(&self_rc);
+        }
     }
 }
